@@ -103,4 +103,41 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
             amplitude transmission coefficients of the transmitted
             diffraction orders
     '''
-    pass
+    k0 = complex(2 * np.pi / lam, 0)
+    kx = complex((2 * np.pi / lam) * np.sqrt(perm_in) * np.sin(theta), 0)
+    G = (2 * np.pi / period) * np.arange(-N, N+1)
+    kxx = kx * np.ones_like(G)
+    K = np.diag(kxx + G)
+    # K = diags(G + kxx, offsets=0).todense()
+    phi = np.identity(2*N + 1)
+    beta_in = np.sqrt(k0**2 * perm_in * phi - K @ K)
+    T_matrix = np.identity(2 * (2*N + 1))
+    B = np.block([[phi, phi], [np.multiply(phi, beta_in), np.multiply(-phi, beta_in)]])
+    
+    for i in range(layer_numb):
+        beta, coeff_el = fmm1d_te_layer_modes(layer_perm[i, :], period, k0, kx, N)
+        p_pos = np.diag(np.exp(1j * beta * layer_thicknesses[i]))
+        p_neg = np.diag(np.exp(-1j * beta * layer_thicknesses[i]))
+        A = np.block([[coeff_el, coeff_el], [np.multiply(coeff_el, beta), np.multiply(-coeff_el, beta)]])
+        t_mat = np.linalg.solve(A, B)
+        B = A
+        T_mat = t_mat @ np.block([[p_pos, np.zeros((2*N+1, 2*N+1))],[np.zeros((2*N+1, 2*N+1)), p_neg]])
+        T_matrix = T_mat @ T_matrix
+            
+    beta_out = np.sqrt(k0**2 * perm_out * phi - K @ K)
+    t_mat = np.linalg.solve(np.block([[phi, phi], [np.multiply(phi, beta_out), np.multiply(-phi, beta_out)]]), B)
+    T_mat = t_mat @ np.block([[np.identity(2*N + 1), np.zeros((2*N+1, 2*N+1))],[np.zeros((2*N+1, 2*N+1)), np.identity(2*N + 1)]])
+    T_matrix = T_mat @ T_matrix
+    
+    a_in = np.zeros(2*N+1)
+    a_in[N+1] = 1
+    t22 = T_matrix[2*N+1:2*(2*N+1), 2*N+1:2*(2*N+1)]
+    t21 = T_matrix[2*N+1:2*(2*N+1), 0:2*N+1]
+    t11 = T_matrix[0:2*N+1, 0:2*N+1]
+    t12 = T_matrix[0:2*N+1, 2*N+1:2*(2*N+1)]
+    r = np.multiply(-np.linalg.solve(t22, t21), a_in)
+    t = np.multiply((t11 - t12 @ np.linalg.solve(t22, t21)), a_in)
+    eta_r = r * np.conj(np.transpose(r))
+    eta_t = t * np.conj(np.transpose(t))
+
+    return r, t
