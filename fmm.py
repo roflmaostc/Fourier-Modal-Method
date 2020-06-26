@@ -5,7 +5,8 @@ import numpy as np
 from numpy.linalg import eig, solve
 from scipy.linalg import toeplitz
 from scipy.fftpack import fft
-from scipy.sparse import diags 
+from scipy.sparse import diags
+
 
 def fmm1d_te_layer_modes(perm, period, k0, kx, N):
     '''Calculates the TE eigenmodes of a one-dimensional grating layer.
@@ -46,7 +47,6 @@ def fmm1d_te_layer_modes(perm, period, k0, kx, N):
 
     # create the toeplitz matrix containing the Fourier coefficients of perm
     eps_hat = toeplitz(perm_fc_pos, perm_fc_neg)
-    print(eps_hat.shape)
     # create \hat K Matrix
     K_hat = diags(Gm + kx, offsets=0).todense()
 
@@ -56,7 +56,12 @@ def fmm1d_te_layer_modes(perm, period, k0, kx, N):
     # calculate the eigenvalues and eigenvectors of M_hat
     eig_values, eig_vectors = eig(M_hat)
 
-    return eig_values, eig_vectors
+    # take sqrt to get the propagation constant
+    beta = np.sqrt(eig_values)
+    # invert eigenvalue if it corresponds to a backward propagating direction
+    beta[np.real(beta) + np.imag(beta) < 0] *= -1
+
+    return beta, eig_vectors
 
 
 
