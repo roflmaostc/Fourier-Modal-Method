@@ -48,10 +48,10 @@ def fmm1d_te_layer_modes(perm, period, k0, kx, N):
     # create the toeplitz matrix containing the Fourier coefficients of perm
     eps_hat = toeplitz(perm_fc_pos, perm_fc_neg)
     # create \hat K Matrix
-    K_hat = diags(Gm + kx, offsets=0).todense()
+    K_hat_square = diags((Gm + kx) ** 2, offsets=0).todense()
 
     # create final matrix
-    M_hat = (k0 ** 2 * eps_hat - np.matmul(K_hat, K_hat))
+    M_hat = (k0 ** 2 * eps_hat - K_hat_square)
 
     # calculate the eigenvalues and eigenvectors of M_hat
     eig_values, eig_vectors = eig(M_hat)
@@ -103,4 +103,19 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
             amplitude transmission coefficients of the transmitted
             diffraction orders
     '''
-    pass
+    phi_e_0 = diags(np.ones((N)), offsets=0).todense()
+    # vacuum wave vector
+    k0 = 2 * np.pi / lam
+    d0 = 0
+
+    for d, perm in zip(layer_ticknesses, layer_perm):
+        pass
+
+
+
+
+
+
+
+
+
