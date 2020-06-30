@@ -34,7 +34,7 @@ Nx          = 1001  # number of points to discretize the permittivity
                     # ditribution
 N           = 20    # number of positive Fourier orders
 
-theta = 0
+theta = 0#np.pi / 6 
 
 
 x = np.arange(Nx) * period / Nx
@@ -47,6 +47,8 @@ for i in range(len(widths)):
 eta_r, eta_t, r, t = fmm1d_te(lam, theta, period, perm_in, perm_out,
                               layer_perm, thicknesses, N)
 
-
-# print(eta_r)
+print(eta_t)
+# print(np.abs(r) ** 2)
+# print(np.abs(r) ** 2)
 # print(r)
+# print(np.sum(eta_r) + np.sum(eta_t))
