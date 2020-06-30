@@ -117,20 +117,15 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
     # initial beta
     beta_0 = np.sqrt(k0**2 * perm_in * np.identity(2 * N + 1) - K_hat_square)
    
-    # TODO
-    # what is this...
-    beta_in = 1
-    
-
-    print("matmul", np.dot(phi_e, beta_0).shape)
-    print("phi_e", phi_e.shape) 
+    # print("matmul", np.dot(phi_e, beta_0).shape)
+    # print("phi_e", phi_e.shape) 
     # initial transfer matrix
     T_matrix = np.identity(2 * (2*N + 1))
-    print("T_matrix", T_matrix.shape)
+    # print("T_matrix", T_matrix.shape)
     # initial block matrix
     B = np.block([[phi_e, phi_e],
                   [np.dot(phi_e, beta_0), np.dot(-phi_e, beta_0)]])
-    print("B_matrix", B.shape)
+    # print("B_matrix", B.shape)
     # iterate over all z layers
     for lt, perm in zip(layer_thicknesses,  layer_perm):
         beta, phi_e = fmm1d_te_layer_modes(perm, period, k0, kx, N)
@@ -144,24 +139,23 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
                       [np.dot(phi_e, beta_hat),
                        np.dot(-phi_e, beta_hat)]])
 
-        print("A_matrix", A.shape)
+        # print("A_matrix", A.shape)
         t_mat = np.linalg.solve(A, B)
         B = A
-        T_mat = t_mat @ np.block([[p_pos, np.zeros((2 * N + 1, 2 * N + 1))],
-                                  [np.zeros((2 * N + 1, 2 * N + 1)), p_neg]])
+        T_mat = t_mat @ np.block([[p_pos, np.zeros(p_pos.shape)],
+                                  [np.zeros(p_pos.shape), p_neg]])
         T_matrix = T_mat @ T_matrix
 
     beta_out = np.sqrt(k0 ** 2 * perm_out * phi_e - K_hat_square)
+    beta_out_hat = np.diag(beta)
+    phi_e_out = np.identity((beta_out.shape[0]))
     t_mat = np.linalg.solve(np.block([[phi_e, phi_e],
-                                      [np.dot(phi_e, beta_out),
-                                       np.dot(- phi_e, beta_out)]]),
+                                      [np.dot(phi_e, beta_out_hat),
+                                       np.dot(-phi_e, beta_out_hat)]]),
                             B)
 
 
-    T_mat = t_mat @ np.block([[np.identity(2 * N + 1),
-                               np.zeros((2 * N + 1, 2 * N + 1))],
-                              [np.zeros((2 * N + 1, 2 * N + 1)),
-                               np.identity(2 * N + 1)]])
+    T_mat = t_mat
 
     T_matrix = T_mat @ T_matrix
 
@@ -179,19 +173,20 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
     t22 = T_matrix[index_2, index_2]
 
     # calculate R and T matrices
-    R = np.dot(-np.linalg.solve(t22, t21),
-                    a_in[:, np.newaxis])
+    R = np.dot(-np.linalg.solve(t22, t21), a_in[:, np.newaxis])
+    print("Final R", R.shape)
 
-    T = np.dot((t11 - t12 @ np.linalg.solve(t22, t21)),
-                    a_in[:, np.newaxis])
+    T = np.dot((t11 - t12 @ np.linalg.solve(t22, t21)), a_in[:, np.newaxis])
+    print("Final T", T.shape)
+
     # print(np.linalg.solve(t22, t21).shape)
     # print(a_in[:, np.newaxis].shape)
-    
+    print("real beta0", beta_0[beta_0 > 0]) 
     # extract efficiencies
-    eta_r = 1 / np.real(beta_in) * np.real(beta_0) *\
+    eta_r = 1 / np.real(k0) * np.real(beta_0) *\
             R * np.conj(np.transpose(R))
 
-    eta_t = 1 / np.real(beta_in) * np.real(beta_out) *\
+    eta_t = 1 / np.real(k0) * np.real(beta_out) *\
             T * np.conj(np.transpose(T))
 
     return eta_r, eta_t, R, T

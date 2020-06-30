@@ -48,5 +48,5 @@ eta_r, eta_t, r, t = fmm1d_te(lam, theta, period, perm_in, perm_out,
                               layer_perm, thicknesses, N)
 
 
-print(eta_r)
-print(r)
+# print(eta_r)
+# print(r)
