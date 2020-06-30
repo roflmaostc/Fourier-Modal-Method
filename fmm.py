@@ -114,8 +114,14 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
     # initial phi electrical
     phi_e = np.identity(2 * N + 1)
 
+    # initial beta
     beta_0 = np.sqrt(k0**2 * perm_in * np.identity(2 * N + 1) - K_hat_square)
+   
+    # TODO
+    # what is this...
     beta_in = 1
+    
+
     print("matmul", np.dot(phi_e, beta_0).shape)
     print("phi_e", phi_e.shape) 
     # initial transfer matrix
@@ -128,7 +134,10 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
     # iterate over all z layers
     for lt, perm in zip(layer_thicknesses,  layer_perm):
         beta, phi_e = fmm1d_te_layer_modes(perm, period, k0, kx, N)
+        # convert beta to beta_hat containing the entries on the diagonal
         beta_hat = np.diag(beta)
+
+        # matrices for forward and backward propagation
         p_pos = np.diag(np.exp(1j * beta * lt))
         p_neg = np.diag(np.exp(-1j * beta * lt))
         A = np.block([[phi_e, phi_e],
