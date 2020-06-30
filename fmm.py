@@ -66,7 +66,7 @@ def fmm1d_te_layer_modes(perm, period, k0, kx, N):
 
 
 def fmm1d_te(lam, theta, period, perm_in, perm_out,
-             layer_perm, layer_ticknesses, N):
+             layer_perm, layer_thicknesses, N):
     '''Calculates the TE diffraction efficiencies for a one-dimensional
     layered grating structure using the T-matrix method.
 
@@ -109,32 +109,41 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
     # x component of k
     kx = 0j + (2 * np.pi / lam) * np.sqrt(perm_in) * np.sin(theta)
     G = (2 * np.pi / period) * np.arange(-N, N+1)
-    
     # create K_hat matrix
     K_hat_square = np.diag((kx + G) ** 2)
-    phi_e = np.identity(2*N + 1)
-    beta_in = np.sqrt(k0**2 * perm_in * phi - K_hat_square)
+    # initial phi electrical
+    phi_e = np.identity(2 * N + 1)
+
+    beta_0 = np.sqrt(k0**2 * perm_in * np.identity(2 * N + 1) - K_hat_square)
+    beta_in = 1
+    print("matmul", np.dot(phi_e, beta_0).shape)
+    print("phi_e", phi_e.shape) 
+    # initial transfer matrix
     T_matrix = np.identity(2 * (2*N + 1))
-    B = np.block([[phi, phi], [np.multiply(phi, beta_in), np.multiply(-phi, beta_in)]])
-    
+    print("T_matrix", T_matrix.shape)
+    # initial block matrix
+    B = np.block([[phi_e, phi_e],
+                  [np.dot(phi_e, beta_0), np.dot(-phi_e, beta_0)]])
+    print("B_matrix", B.shape)
+    # iterate over all z layers
     for lt, perm in zip(layer_thicknesses,  layer_perm):
-        beta, coeff_el = fmm1d_te_layer_modes(perm, period, k0, kx, N)
+        beta, phi_e = fmm1d_te_layer_modes(perm, period, k0, kx, N)
         p_pos = np.diag(np.exp(1j * beta * lt))
         p_neg = np.diag(np.exp(-1j * beta * lt))
-        A = np.block([[coeff_el, coeff_el], 
-                      [np.multiply(coeff_el, beta),
-                       np.multiply(-coeff_el, beta)]
-                     ])
+        A = np.block([[phi_e, phi_e],
+                      [np.dot(phi_e, beta),
+                       np.dot(-phi_e, beta)]])
+        print("A_matrix", A.shape)
         t_mat = np.linalg.solve(A, B)
         B = A
         T_mat = t_mat @ np.block([[p_pos, np.zeros((2 * N + 1, 2 * N + 1))],
                                   [np.zeros((2 * N + 1, 2 * N + 1)), p_neg]])
         T_matrix = T_mat @ T_matrix
-            
-    beta_out = np.sqrt(k0 ** 2 * perm_out * phi - K @ K)
-    t_mat = np.linalg.solve(np.block([[phi, phi],
-                                      [np.multiply(phi, beta_out),
-                                       np.multiply(-phi, beta_out)]]),
+
+    beta_out = np.sqrt(k0 ** 2 * perm_out * phi_e - K_hat_square)
+    t_mat = np.linalg.solve(np.block([[phi_e, phi_e],
+                                      [np.dot(phi_e, beta_out),
+                                       np.dot(- phi_e, beta_out)]]),
                             B)
 
 
@@ -144,16 +153,34 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
                                np.identity(2 * N + 1)]])
 
     T_matrix = T_mat @ T_matrix
-    
-    a_in = np.zeros(2*N+1)
-    a_in[N+1] = 1
-    t22 = T_matrix[2*N+1:2*(2*N+1), 2*N+1:2*(2*N+1)]
-    t21 = T_matrix[2*N+1:2*(2*N+1), 0:2*N+1]
-    t11 = T_matrix[0:2*N+1, 0:2*N+1]
-    t12 = T_matrix[0:2*N+1, 2*N+1:2*(2*N+1)]
-    r = np.multiply(-np.linalg.solve(t22, t21), a_in)
-    t = np.multiply((t11 - t12 @ np.linalg.solve(t22, t21)), a_in)
-    eta_r = r * np.conj(np.transpose(r))
-    eta_t = t * np.conj(np.transpose(t))
 
-    return r, t
+    # initial amplitudes
+    a_in = np.zeros(2 * N + 1)
+    # set only this input coefficient to 1
+    a_in[N + 1] = 1
+
+    # extract the four block matrices from the T_matrix
+    index_1 = slice(None, 2 * N + 1)
+    index_2 = slice(2 * N + 1, None)
+    t11 = T_matrix[index_1, index_1]
+    t12 = T_matrix[index_1, index_2]
+    t21 = T_matrix[index_2, index_1]
+    t22 = T_matrix[index_2, index_2]
+
+    # calculate R and T matrices
+    R = np.dot(-np.linalg.solve(t22, t21),
+                    a_in[np.newaxis, :])
+
+    T = np.dot((t11 - t12 @ np.linalg.solve(t22, t21)),
+                    a_in[np.newaxis, :])
+    # print(np.linalg.solve(t22, t21).shape)
+    # print(a_in[:, np.newaxis].shape)
+    
+    # extract efficiencies
+    eta_r = 1 / np.real(beta_in) * np.real(beta_0) *\
+            R * np.conj(np.transpose(R))
+
+    eta_t = 1 / np.real(beta_in) * np.real(beta_out) *\
+            T * np.conj(np.transpose(T))
+
+    return eta_r, eta_t, R, T

@@ -2,7 +2,7 @@
 '''
 
 import numpy as np
-from Homework_4_function_headers import fmm1d_te
+from fmm import fmm1d_te
 from matplotlib import pyplot as plt
 
 plt.rcParams.update({
@@ -42,3 +42,11 @@ layer_perm = perm_l * np.ones((len(widths), Nx))
 
 for i in range(len(widths)):
     layer_perm[i, x <= widths[i]] = perm_h
+
+
+eta_r, eta_t, r, t = fmm1d_te(lam, theta, period, perm_in, perm_out,
+                              layer_perm, thicknesses, N)
+
+
+print(eta_r)
+print(r)

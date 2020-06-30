@@ -43,4 +43,6 @@ k0 = 2 * np.pi / lam
 kx = 0
 
 
-eig_values, eig_vectors = fmm1d_te_layer_modes(perm, period, k0, kx, N)
+beta, eig_vectors = fmm1d_te_layer_modes(perm, period, k0, kx, N)
+
+print(beta, eig_vectors)
