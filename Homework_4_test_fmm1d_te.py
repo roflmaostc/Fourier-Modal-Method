@@ -33,3 +33,12 @@ perm_out    = 4.0   # permittivity on the exit side
 Nx          = 1001  # number of points to discretize the permittivity
                     # ditribution
 N           = 20    # number of positive Fourier orders
+
+theta = 0
+
+
+x = np.arange(Nx) * period / Nx
+layer_perm = perm_l * np.ones((len(widths), Nx))
+
+for i in range(len(widths)):
+    layer_perm[i, x <= widths[i]] = perm_h

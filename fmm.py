@@ -103,19 +103,57 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
             amplitude transmission coefficients of the transmitted
             diffraction orders
     '''
-    phi_e_0 = diags(np.ones((N)), offsets=0).todense()
     # vacuum wave vector
-    k0 = 2 * np.pi / lam
+    k0 = 2 * np.pi / lam + 0j
     d0 = 0
+    # x component of k
+    kx = 0j + (2 * np.pi / lam) * np.sqrt(perm_in) * np.sin(theta)
+    G = (2 * np.pi / period) * np.arange(-N, N+1)
+    
+    # create K_hat matrix
+    K_hat_square = np.diag((kx + G) ** 2)
+    phi_e = np.identity(2*N + 1)
+    beta_in = np.sqrt(k0**2 * perm_in * phi - K_hat_square)
+    T_matrix = np.identity(2 * (2*N + 1))
+    B = np.block([[phi, phi], [np.multiply(phi, beta_in), np.multiply(-phi, beta_in)]])
+    
+    for lt, perm in zip(layer_thicknesses,  layer_perm):
+        beta, coeff_el = fmm1d_te_layer_modes(perm, period, k0, kx, N)
+        p_pos = np.diag(np.exp(1j * beta * lt))
+        p_neg = np.diag(np.exp(-1j * beta * lt))
+        A = np.block([[coeff_el, coeff_el], 
+                      [np.multiply(coeff_el, beta),
+                       np.multiply(-coeff_el, beta)]
+                     ])
+        t_mat = np.linalg.solve(A, B)
+        B = A
+        T_mat = t_mat @ np.block([[p_pos, np.zeros((2 * N + 1, 2 * N + 1))],
+                                  [np.zeros((2 * N + 1, 2 * N + 1)), p_neg]])
+        T_matrix = T_mat @ T_matrix
+            
+    beta_out = np.sqrt(k0 ** 2 * perm_out * phi - K @ K)
+    t_mat = np.linalg.solve(np.block([[phi, phi],
+                                      [np.multiply(phi, beta_out),
+                                       np.multiply(-phi, beta_out)]]),
+                            B)
 
-    for d, perm in zip(layer_ticknesses, layer_perm):
-        pass
 
+    T_mat = t_mat @ np.block([[np.identity(2 * N + 1),
+                               np.zeros((2 * N + 1, 2 * N + 1))],
+                              [np.zeros((2 * N + 1, 2 * N + 1)),
+                               np.identity(2 * N + 1)]])
 
+    T_matrix = T_mat @ T_matrix
+    
+    a_in = np.zeros(2*N+1)
+    a_in[N+1] = 1
+    t22 = T_matrix[2*N+1:2*(2*N+1), 2*N+1:2*(2*N+1)]
+    t21 = T_matrix[2*N+1:2*(2*N+1), 0:2*N+1]
+    t11 = T_matrix[0:2*N+1, 0:2*N+1]
+    t12 = T_matrix[0:2*N+1, 2*N+1:2*(2*N+1)]
+    r = np.multiply(-np.linalg.solve(t22, t21), a_in)
+    t = np.multiply((t11 - t12 @ np.linalg.solve(t22, t21)), a_in)
+    eta_r = r * np.conj(np.transpose(r))
+    eta_t = t * np.conj(np.transpose(t))
 
-
-
-
-
-
-
+    return r, t
