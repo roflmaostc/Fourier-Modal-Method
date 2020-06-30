@@ -128,11 +128,13 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
     # iterate over all z layers
     for lt, perm in zip(layer_thicknesses,  layer_perm):
         beta, phi_e = fmm1d_te_layer_modes(perm, period, k0, kx, N)
+        beta_hat = np.diag(beta)
         p_pos = np.diag(np.exp(1j * beta * lt))
         p_neg = np.diag(np.exp(-1j * beta * lt))
         A = np.block([[phi_e, phi_e],
-                      [np.dot(phi_e, beta),
-                       np.dot(-phi_e, beta)]])
+                      [np.dot(phi_e, beta_hat),
+                       np.dot(-phi_e, beta_hat)]])
+
         print("A_matrix", A.shape)
         t_mat = np.linalg.solve(A, B)
         B = A
@@ -169,10 +171,10 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
 
     # calculate R and T matrices
     R = np.dot(-np.linalg.solve(t22, t21),
-                    a_in[np.newaxis, :])
+                    a_in[:, np.newaxis])
 
     T = np.dot((t11 - t12 @ np.linalg.solve(t22, t21)),
-                    a_in[np.newaxis, :])
+                    a_in[:, np.newaxis])
     # print(np.linalg.solve(t22, t21).shape)
     # print(a_in[:, np.newaxis].shape)
     
