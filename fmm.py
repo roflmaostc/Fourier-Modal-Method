@@ -37,9 +37,9 @@ def fmm1d_te_layer_modes(perm, period, k0, kx, N):
     perm_fc = fft(perm) / (Nx - 1)
 
     # take the first 2 * N positive and 0 frequency
-    perm_fc_pos = perm_fc[0:2 * N + 1]
+    perm_fc_pos = perm_fc[:2 * N + 1]
     # take the first 2 * N negative and 0 frequency
-    perm_fc_neg = np.concatenate((np.array(perm_fc[0:1]),
+    perm_fc_neg = np.concatenate((np.array(perm_fc[:1]),
                                   perm_fc[-(2 * N):][::-1]), axis=0)
 
     # calculate grating
@@ -106,7 +106,8 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
     # vacuum wave vector
     k0 = 2 * np.pi / lam + 0j
     # x component of k
-    kx = 0j + (2 * np.pi / lam) * np.sqrt(perm_in) * np.sin(theta)
+    # todo multiply it by sqrt(perm_in)?
+    kx = k0  * np.sin(theta)
     G = (2 * np.pi / period) * np.arange(-N, N+1)
     # create K_hat matrix
     K_hat_square = np.diag((kx + G) ** 2)
@@ -122,7 +123,10 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
     B = np.block([[phi_e, phi_e],
                   [np.dot(phi_e, beta_0_hat), np.dot(-phi_e, beta_0_hat)]])
     # iterate over all z layers
-    for lt, perm in zip([0] + layer_thicknesses,  layer_perm):
+    # todo this [0] appended at the beginning is also not totally clear
+    # look how d_k is defined in the slides (p. 14)
+    for lt, perm in zip(layer_thicknesses,  layer_perm):
+        # todo how is kx defined? 
         beta, phi_e = fmm1d_te_layer_modes(perm, period, k0, kx, N)
         # convert beta to beta_hat containing the entries on the diagonal
         beta_hat = np.diag(beta)
@@ -140,18 +144,26 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
                                   [np.zeros(p_pos.shape), p_neg]])
         T_matrix = T_mat @ T_matrix
 
-
+    # todo
+    # we are using the old phi_e here -> makes sense?
+    phi_e = np.identity(2 * N + 1)
     # beta_out_hat matrix
     beta_out_hat = np.sqrt(k0 ** 2 * perm_out * np.identity(2 * N + 1)
                            - K_hat_square)
-    # solve for t_mat
-    t_mat = np.linalg.solve(np.block([[phi_e, phi_e],
-                                      [np.dot(phi_e, beta_out_hat),
-                                       np.dot(-phi_e, beta_out_hat)]]),
-                            B)
+    beta = np.diagonal(beta_out_hat) * 0
 
+    # todo also we are using the old beta here
+    # on p 14 it says that p_pos and p_neg are identities
     p_pos = np.diag(np.exp(1j * beta * layer_thicknesses[-1]))
     p_neg = np.diag(np.exp(-1j * beta * layer_thicknesses[-1]))
+
+    # solve for t_mat
+    A = np.block([[phi_e, phi_e],
+                  [np.dot(phi_e, beta_out_hat),
+                   np.dot(-phi_e, beta_out_hat)]])
+    t_mat = np.linalg.solve(A, B)
+
+    # todo old t_mat is here used. before we always updated it
     T_mat = t_mat @ np.block([[p_pos, np.zeros(p_pos.shape)],
                               [np.zeros(p_pos.shape), p_neg]])
 
