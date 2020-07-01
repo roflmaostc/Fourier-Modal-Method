@@ -111,58 +111,41 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
     # create K_hat matrix
     K_hat_square = np.diag((kx + G) ** 2)
     # initial phi electrical
-    phi_e = np.identity(2 * N + 1)
+    ident = np.identity(2 * N + 1)
 
     # initial beta
     beta_0_hat = np.sqrt(k0**2 * perm_in * np.identity(2 * N + 1) - K_hat_square)
     beta = np.diagonal(beta_0_hat)
-    # initial transfer matrix
-    T_matrix = np.identity(2 * (2*N + 1))
     # initial block matrix
-    B = np.block([[phi_e, phi_e],
-                  [np.dot(phi_e, beta_0_hat), np.dot(-phi_e, beta_0_hat)]])
+    T_matrix = np.block([[ident, ident],
+                        [beta_0_hat, - beta_0_hat]])
     # iterate over all z layers
-    layer_thicknesses = np.concatenate((np.array([0]), layer_thicknesses))
     for lt, perm in zip(layer_thicknesses, layer_perm):
 
         beta, phi_e = fmm1d_te_layer_modes(perm, period, k0, kx, N)
         # convert beta to beta_hat containing the entries on the diagonal
         beta_hat = np.diag(beta)
-        
+
         # matrices for forward and backward propagation
         p_pos = np.diag(np.exp(1j * beta * lt))
         p_neg = np.diag(np.exp(-1j * beta * lt))
-
 
         A = np.block([[phi_e, phi_e],
                       [np.dot(phi_e, beta_hat),
                        np.dot(-phi_e, beta_hat)]])
 
-        t_mat = np.linalg.solve(A, B)
-        B = A
-        T_mat = t_mat @ np.block([[p_pos, np.zeros(p_pos.shape)],
+        p_mat = np.block([[p_pos, np.zeros(p_pos.shape)],
                                   [np.zeros(p_pos.shape), p_neg]])
-        T_matrix = T_mat @ T_matrix
+        T = A @ np.linalg.solve(A.T, p_mat.T).T
+        T_matrix = T @ T_matrix
 
-    phi_e = np.identity(2 * N + 1)
     # beta_out_hat matrix
     beta_out_hat = np.sqrt(k0 ** 2 * perm_out * np.identity(2 * N + 1)
                            - K_hat_square)
     beta = np.diagonal(beta_out_hat)
-
-    p_pos = np.diag(np.exp(1j * beta * layer_thicknesses[-1]))
-    p_neg = np.diag(np.exp(-1j * beta * layer_thicknesses[-1]))
-
-    # solve for t_mat
-    A = np.block([[phi_e, phi_e],
-                  [np.dot(phi_e, beta_out_hat),
-                   np.dot(-phi_e, beta_out_hat)]])
-    t_mat = np.linalg.solve(A, B)
-
-    T_mat = t_mat @ np.block([[p_pos, np.zeros(p_pos.shape)],
-                              [np.zeros(p_pos.shape), p_neg]])
-
-    T_matrix = T_mat @ T_matrix
+    T_final = np.block([[ident, ident],
+                        [beta_out_hat, - beta_out_hat]])
+    T_matrix = np.linalg.solve(T_final, T_matrix)
 
     # initial amplitudes
     a_in = np.zeros(2 * N + 1)
