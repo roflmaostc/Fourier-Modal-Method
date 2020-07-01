@@ -106,8 +106,7 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
     # vacuum wave vector
     k0 = 2 * np.pi / lam + 0j
     # x component of k
-    # todo multiply it by sqrt(perm_in)?
-    kx = k0  * np.sin(theta)
+    kx = k0 * np.sqrt(perm_in) * np.sin(theta)
     G = (2 * np.pi / period) * np.arange(-N, N+1)
     # create K_hat matrix
     K_hat_square = np.diag((kx + G) ** 2)
@@ -116,24 +115,25 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
 
     # initial beta
     beta_0_hat = np.sqrt(k0**2 * perm_in * np.identity(2 * N + 1) - K_hat_square)
-
+    beta = np.diagonal(beta_0_hat)
     # initial transfer matrix
     T_matrix = np.identity(2 * (2*N + 1))
     # initial block matrix
     B = np.block([[phi_e, phi_e],
                   [np.dot(phi_e, beta_0_hat), np.dot(-phi_e, beta_0_hat)]])
     # iterate over all z layers
-    # todo this [0] appended at the beginning is also not totally clear
-    # look how d_k is defined in the slides (p. 14)
-    for lt, perm in zip(layer_thicknesses,  layer_perm):
-        # todo how is kx defined? 
+    layer_thicknesses = np.concatenate((np.array([0]), layer_thicknesses))
+    for lt, perm in zip(layer_thicknesses, layer_perm):
+
         beta, phi_e = fmm1d_te_layer_modes(perm, period, k0, kx, N)
         # convert beta to beta_hat containing the entries on the diagonal
         beta_hat = np.diag(beta)
-
+        
         # matrices for forward and backward propagation
         p_pos = np.diag(np.exp(1j * beta * lt))
         p_neg = np.diag(np.exp(-1j * beta * lt))
+
+
         A = np.block([[phi_e, phi_e],
                       [np.dot(phi_e, beta_hat),
                        np.dot(-phi_e, beta_hat)]])
@@ -144,16 +144,12 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
                                   [np.zeros(p_pos.shape), p_neg]])
         T_matrix = T_mat @ T_matrix
 
-    # todo
-    # we are using the old phi_e here -> makes sense?
     phi_e = np.identity(2 * N + 1)
     # beta_out_hat matrix
     beta_out_hat = np.sqrt(k0 ** 2 * perm_out * np.identity(2 * N + 1)
                            - K_hat_square)
-    beta = np.diagonal(beta_out_hat) * 0
+    beta = np.diagonal(beta_out_hat)
 
-    # todo also we are using the old beta here
-    # on p 14 it says that p_pos and p_neg are identities
     p_pos = np.diag(np.exp(1j * beta * layer_thicknesses[-1]))
     p_neg = np.diag(np.exp(-1j * beta * layer_thicknesses[-1]))
 
@@ -163,7 +159,6 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
                    np.dot(-phi_e, beta_out_hat)]])
     t_mat = np.linalg.solve(A, B)
 
-    # todo old t_mat is here used. before we always updated it
     T_mat = t_mat @ np.block([[p_pos, np.zeros(p_pos.shape)],
                               [np.zeros(p_pos.shape), p_neg]])
 
@@ -172,7 +167,7 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
     # initial amplitudes
     a_in = np.zeros(2 * N + 1)
     # set only this input coefficient to 1
-    a_in[N + 1] = 1
+    a_in[N] = 1
 
     # extract the four block matrices from the T_matrix
     index_1 = slice(None, 2 * N + 1)

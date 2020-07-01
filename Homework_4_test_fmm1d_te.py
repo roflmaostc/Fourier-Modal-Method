@@ -47,7 +47,8 @@ for i in range(len(widths)):
 eta_r, eta_t, r, t = fmm1d_te(lam, theta, period, perm_in, perm_out,
                               layer_perm, thicknesses, N)
 
-print(eta_t)
+print(np.sum(eta_r))
+print(np.sum(eta_t))
 print(np.sum(np.abs(t) ** 2 + np.abs(r) ** 2))
-print(r)
+# print(eta_t)
 # print(np.sum(eta_r) + np.sum(eta_t))
