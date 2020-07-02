@@ -57,9 +57,9 @@ def fmm1d_te_layer_modes(perm, period, k0, kx, N):
     eig_values, eig_vectors = eig(M_hat)
 
     # take sqrt to get the propagation constant
-    beta = np.sqrt(eig_values)
+    beta = np.sqrt(eig_values, dtype=np.complex128)
     # invert eigenvalue if it corresponds to a backward propagating direction
-    beta[np.real(beta) + np.imag(beta) < 0] *= -1
+    beta[np.where(np.real(beta) + np.imag(beta) < 0)] *= -1
 
     return beta, eig_vectors
 
@@ -111,11 +111,12 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
     # create K_hat matrix
     K_hat_square = np.diag((kx + G) ** 2)
     # initial phi electrical
-    ident = np.identity(2 * N + 1)
+    ident = np.identity(2 * N + 1,dtype=np.complex128)
 
     # initial beta
-    beta_0_hat = np.sqrt(k0**2 * perm_in * np.identity(2 * N + 1) - K_hat_square)
-    beta = np.diagonal(beta_0_hat)
+    beta_0_hat = np.sqrt(k0**2 * perm_in * ident - K_hat_square, dtype=np.complex128)
+    #beta = np.diagonal(beta_0_hat)
+    beta_0_hat[np.where(np.real(beta_0_hat) + np.imag(beta_0_hat) < 0.0)] *= -1
     # initial block matrix
     T_matrix = np.block([[ident, ident],
                         [beta_0_hat, - beta_0_hat]])
@@ -140,21 +141,23 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
         T_matrix = T @ T_matrix
 
     # beta_out_hat matrix
-    beta_out_hat = np.sqrt(k0 ** 2 * perm_out * np.identity(2 * N + 1)
-                           - K_hat_square)
-    beta = np.diagonal(beta_out_hat)
+    beta_out_hat = np.sqrt(k0 ** 2 * perm_out * ident
+                           - K_hat_square, dtype=np.complex128)
+    beta_out_hat[np.where(np.real(beta_out_hat) + np.imag(beta_out_hat) < 0.0)] *= -1
+    #beta = np.diagonal(beta_out_hat)
     T_final = np.block([[ident, ident],
                         [beta_out_hat, - beta_out_hat]])
     T_matrix = np.linalg.solve(T_final, T_matrix)
 
     # initial amplitudes
-    a_in = np.zeros(2 * N + 1)
+    a_in = np.zeros(2 * N + 1,dtype=np.complex128)
     # set only this input coefficient to 1
-    a_in[N] = 1
+    a_in[N] = 1 + 0j
 
     # extract the four block matrices from the T_matrix
     index_1 = slice(None, 2 * N + 1)
     index_2 = slice(2 * N + 1, None)
+    
     t11 = T_matrix[index_1, index_1]
     t12 = T_matrix[index_1, index_2]
     t21 = T_matrix[index_2, index_1]
@@ -163,12 +166,14 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
     # calculate R and T matrices
     r = np.dot(-np.linalg.solve(t22, t21), a_in[:, np.newaxis])
     t = np.dot((t11 - t12 @ np.linalg.solve(t22, t21)), a_in[:, np.newaxis])
+    r = r.A1
+    t = t.A1
 
     # extract efficiencies
-    eta_r = np.array(np.real(1 / np.real(k0) * np.dot(np.real(beta_0_hat),
-                                         np.multiply(r, np.conj(r)))))
-
-    eta_t = np.array(np.real(1 / np.real(k0) * np.dot(np.real(beta_out_hat),
-                                         np.multiply(t, np.conj(t)))))
-
-    return eta_r, eta_t, np.array(r), np.array(t)
+    
+    beta_in = np.diag(beta_0_hat)
+    beta_out = np.diag(beta_out_hat)
+    eta_r = np.real(r*np.conj(r)*beta_in) / np.real(beta_in[N])
+    eta_t = np.real(t*np.conj(t)*beta_in) / np.real(beta_out[N])
+    
+    return eta_r, eta_t, r, t
