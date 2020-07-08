@@ -44,5 +44,4 @@ kx = 0
 
 
 beta, eig_vectors = fmm1d_te_layer_modes(perm, period, k0, kx, N)
-
 print(beta, eig_vectors)
