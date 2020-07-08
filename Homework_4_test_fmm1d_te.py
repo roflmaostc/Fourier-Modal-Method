@@ -34,8 +34,7 @@ Nx          = 1001  # number of points to discretize the permittivity
                     # ditribution
 N           = 20    # number of positive Fourier orders
 
-theta = 30 / 180 * np.pi 
-
+theta = 50 / 180 * np.pi
 
 x = np.arange(Nx) * period / Nx
 layer_perm = perm_l * np.ones((len(widths), Nx))
@@ -46,13 +45,13 @@ for i in range(len(widths)):
 
 eta_r, eta_t, r, t = fmm1d_te(lam, theta, period, perm_in, perm_out,
                               layer_perm, thicknesses, N)
+# filter for non-zero entries
+eta_r = eta_r[eta_r > 0]
+eta_t = eta_t[eta_t > 0]
 
-print('###### Angle',theta*180/np.pi)
-print("Sum", np.sum(eta_t) + np.sum(eta_r))
-print("Reflect", eta_r)
-print("Trans", eta_t)
-# print(eta_r)
-# print(t)
-# print(np.sum(np.abs(t)**2 + np.abs(r)**2))
-# print(eta_t)
-# print(np.sum(eta_r) + np.sum(eta_t))
+print("Angle:\t\t\t\t{:.4f}".format(theta*180/np.pi))
+print("Sum of eta_t and eta_r:\t\t{:.4f}".format(np.sum(eta_t) + np.sum(eta_r)))
+print("Number of reflection orders:\t{}".format(len(eta_r)))
+print("Number of transmission orders:\t{}".format(len(eta_t)))
+print("eta_r:\t\t\t\t{}".format(eta_r))
+print("eta_t:\t\t\t\t{}".format(eta_t))
