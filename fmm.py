@@ -176,11 +176,17 @@ def fmm1d_te(lam, theta, period, perm_in, perm_out,
     beta_in = np.diag(beta_0_hat).astype(dtype)
 
     # calculate transmission and reflection efficiencies
-    eta_r = np.array(np.real(1 / np.real(beta_in[N]) *
+    eta_r = np.real(1 / np.real(beta_in[N]) *
                              np.dot(np.real(beta_0_hat),
-                                    np.multiply(r, np.conj(r)))))
-    eta_t = np.array(np.real(1 / np.real(beta_in[N]) *
+                                    np.multiply(r, np.conj(r))))
+    eta_t = np.real(1 / np.real(beta_in[N]) *
                              np.dot(np.real(beta_out_hat),
-                                    np.multiply(t, np.conj(t)))))
+                                    np.multiply(t, np.conj(t))))
+    
+    #return 1D arrays
+    eta_r = eta_r.A1
+    eta_t = eta_t.A1
+    r = r.A1
+    t = t.A1
 
     return eta_r, eta_t, r, t
